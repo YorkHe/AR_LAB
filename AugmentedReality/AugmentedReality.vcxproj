@@ -19,10 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{892CCA5D-4E22-4A6D-B5AE-6A13EC1603D4}</ProjectGuid>
-    <RootNamespace>AR_LAB</RootNamespace>
+    <ProjectGuid>{BDDB75EC-E510-4157-B54E-2DB1E59D56E3}</ProjectGuid>
+    <RootNamespace>AugmentedReality</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
-    <ProjectName>CameraCalibration</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -70,8 +69,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\Users\york\OneDrive\OpenCV\Library\Include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86;C:\Users\york\OneDrive\OpenCV\Library\Lib</LibraryPath>
+    <IncludePath>C:\Users\york\OneDrive\OpenGL\Libraries\Includes;$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\Users\york\OneDrive\OpenCV\Library\Include</IncludePath>
+    <LibraryPath>C:\Users\york\OneDrive\OpenGL\Libraries\Libs;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86;C:\Users\york\OneDrive\OpenCV\Library\Lib</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -80,7 +79,7 @@
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>opencv_imgproc310d.lib;opencv_calib3d310d.lib;opencv_core310d.lib;opencv_highgui310d.lib;opencv_videoio310d.lib;opencv_video310d.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_aruco320d.lib;opencv_imgproc320d.lib;opencv_calib3d320d.lib;opencv_core320d.lib;opencv_highgui320d.lib;opencv_videoio320d.lib;opencv_video320d.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -117,7 +116,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="calibration.cpp" />
+    <ClCompile Include="ar.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
