@@ -18,5 +18,36 @@
     <ClCompile Include="ar.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Camera.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fragment.glsl">
+      <Filter>源文件</Filter>
+    </None>
+    <None Include="vertex.glsl">
+      <Filter>源文件</Filter>
+    </None>
+    <None Include="bg_f.glsl">
+      <Filter>源文件</Filter>
+    </None>
+    <None Include="bg_v.glsl">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

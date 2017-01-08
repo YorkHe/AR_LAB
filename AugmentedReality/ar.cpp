@@ -1,3 +1,14 @@
+
+#define GLEW_STATIC
+#include <GL/glew.h>
+
+#include <GLFW/glfw3.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -5,12 +16,45 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <iostream>
 
+#include "Camera.hpp"
+#include "Shader.h"
+#include "Model.hpp"
+
 using namespace cv;
 using namespace std;
 using namespace cv::aruco;
 
 const int markersX = 6;
 const int markersY = 4;
+
+int windowWidth = 1024;
+int windowHeight = 768;
+
+GLFWwindow* window;
+
+const char* ARWindowName = "Augmented Reality";
+
+GLuint bgTexture;
+
+GLfloat bgVertices[] = {
+	// Positions       // Texture Coords
+	 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,   // Top Right
+	 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,   // Bottom Right
+	-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,   // Bottom Left
+	-1.0f,  1.0f, 0.0f, 0.0f, 1.0f    // Top Left 
+};
+
+GLuint bgIndices[] = {
+	0, 1, 3,
+	1, 2, 3
+};
+
+float borderColor[] = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+GLuint bgVAO, bgVBO, bgEBO;
+
+Shader bgShader;
+
 
 static void cGetBoardObjectAndImagePoints(const Ptr<Board> &_board, InputArray _detectedIds,
 	InputArrayOfArrays _detectedCorners,
@@ -78,13 +122,110 @@ int cEstimatePoseBoard(InputArrayOfArrays _corners, InputArray _ids, const Ptr<B
 	return (int)objPoints.total() / 4;
 }
 
+int initGLEnv()
+{
+	glfwInit();
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+	window = glfwCreateWindow(windowWidth, windowHeight, ARWindowName, nullptr, nullptr);
+	glfwMakeContextCurrent(window);
+	glewExperimental = GL_TRUE;
+
+	GLenum err;
+	if ((err = glewInit()) != GLEW_OK)
+	{
+		cerr << "Failed to initalize GLEW" << endl;
+		cerr << glewGetErrorString(err) << endl;
+		glfwTerminate();
+
+		return -1;
+	}
+
+	glViewport(0, 0, windowWidth, windowHeight);
+	glEnable(GL_DEPTH_TEST);
+
+	glGenTextures(1, &bgTexture);
+
+	glGenVertexArrays(1, &bgVAO);
+	glGenBuffers(1, &bgVBO);
+	glGenBuffers(1, &bgEBO);
+
+	glBindVertexArray(bgVAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, bgVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(bgVertices), bgVertices, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bgEBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(bgIndices), bgIndices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+	
+	return 0;
+}
+void drawBackground(InputArray image)
+{
+	Mat _image = image.getMat();
+	flip(_image, _image, 0);
+	cvtColor(_image, _image, CV_BGR2RGB);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, bgTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	bgShader.Use();
+	glUniform1i(glGetUniformLocation(bgShader.Program, "bgImage"), 0);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, _image.cols, _image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, _image.data);
+//	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, _image.cols, _image.rows, GL_RGB, GL_UNSIGNED_BYTE, _image.data);
+
+	glBindVertexArray(bgVAO);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+}
+void drawScene(InputArray image)
+{
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+	drawBackground(image);
+
+	glfwSwapBuffers(window);
+}
+
 int main()
 {
+
 	VideoCapture cap(1);
+
 	
 	Mat image;
 
-	namedWindow("Video");
+	/*
+	namedWindow(ARWindowName, WINDOW_OPENGL);
+	resizeWindow(ARWindowName, windowWidth, windowHeight);
+	setOpenGlContext(ARWindowName);
+	*/
+
+	initGLEnv();
+
+	bgShader = Shader("bg_v.glsl", "bg_f.glsl");
+	Model statue("libertyStatue/LibertStatue.obj");
+	
+
 	namedWindow("Marker");
 
 
@@ -129,7 +270,7 @@ int main()
 
 	fs.release();
 
-	while(true)
+	while(!glfwWindowShouldClose(window))
 	{
 		vector<int> markerIds;
 		vector<vector<Point2f>> markerCorners, rejectedCandidatees;
@@ -170,8 +311,7 @@ int main()
 			for (int i = 0; i < c_r_vecs.size(); i++)
 				drawAxis(image, intrinsic, distCoeffs, c_r_vecs[i], c_t_vecs[i], 5);
 		}
-
-		imshow("Video", image);
+		drawScene(image);
 		waitKey(1);
 	}
 
