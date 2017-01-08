@@ -87,10 +87,12 @@ int main()
 	intrinsic.ptr<float>(0)[0] = 1;
 	intrinsic.ptr<float>(1)[1] = 1;
 
-	calibrateCamera(object_points, image_points, image.size(), intrinsic, distCoeffs, rvecs, tvecs);
+		calibrateCamera(object_points, image_points, image.size(), intrinsic, distCoeffs, rvecs, tvecs);
 
-	cout << intrinsic << endl;
-	cout << distCoeffs << endl;
+		cout << intrinsic << endl;
+		cout << distCoeffs << endl;
+		cout << rvecs[0] << endl;
+		cout << tvecs[0] << endl;
 
 	FileStorage fs;
 	fs.open("camera.xml", FileStorage::WRITE);
