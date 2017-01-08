@@ -21,6 +21,10 @@ GLint TextureFromFile(const char* path, string directory);
 class Model
 {
 public:
+	Model()
+	{
+		
+	}
 	Model(GLchar* path)
 	{
 		this->loadModel(path);

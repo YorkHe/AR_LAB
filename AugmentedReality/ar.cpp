@@ -54,6 +54,18 @@ float borderColor[] = { 1.0f, 1.0f, 0.0f, 1.0f };
 GLuint bgVAO, bgVBO, bgEBO;
 
 Shader bgShader;
+Shader modelShader;
+
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
+
+Model statue;
+
+vector<Vec3d> c_r_vecs;
+vector<Vec3d> c_t_vecs;
+Vec3d r_vecs, t_vecs;
+
+Mat intrinsic;
+Mat distCoeffs;
 
 
 static void cGetBoardObjectAndImagePoints(const Ptr<Board> &_board, InputArray _detectedIds,
@@ -174,6 +186,7 @@ int initGLEnv()
 }
 void drawBackground(InputArray image)
 {
+	glDisable(GL_DEPTH_TEST);
 	Mat _image = image.getMat();
 	flip(_image, _image, 0);
 	cvtColor(_image, _image, CV_BGR2RGB);
@@ -189,19 +202,182 @@ void drawBackground(InputArray image)
 	glUniform1i(glGetUniformLocation(bgShader.Program, "bgImage"), 0);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, _image.cols, _image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, _image.data);
-//	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, _image.cols, _image.rows, GL_RGB, GL_UNSIGNED_BYTE, _image.data);
 
 	glBindVertexArray(bgVAO);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
+
+Vec3d Old100Trans = Vec3d(0, 0, 0);
+Vec3d Accumulate100 = Vec3d(0, 0, 0);
+Vec3d Old200Trans = Vec3d(0, 0, 0);
+
+void drawModel()
+{
+	glEnable(GL_DEPTH_TEST);
+	modelShader.Use();
+
+	double f_x = intrinsic.at<double>(0, 0);
+	double f_y = intrinsic.at<double>(1, 1);
+
+	double c_x = intrinsic.at<double>(0, 2);
+	double c_y = intrinsic.at<double>(1, 2);
+
+
+	float near = 0.1;
+	float far = 6000;
+	
+	float right = (windowWidth - c_x) * near / f_x;
+	float left = -c_x * near / f_x;
+	float top = (windowHeight - c_y) * near / f_y;
+	float bottom = (-c_y * near) / f_y;
+
+	cout << f_x << " " << f_y << " " << c_x << " " << c_y << endl;
+	/*
+	glm::mat4 projection = glm::mat4(
+		-2.0 * f_x / windowWidth, 
+		0.0, 
+		0.0, 
+		0.0, 
+
+		0.0, 
+		2.0 * f_y / windowWidth, 
+		0.0, 
+		0.0,
+
+		2.0 * c_x / windowWidth - 1.0, 
+		2.0 * c_y / windowHeight - 1.0,
+		-(far + near) / (far - near),
+		-1.0,
+
+		0.0,
+		0.0,
+		-2.0 * far * near / (far - near),
+		0.0
+	);
+	*/
+
+
+	/*
+	glm::mat4 projection = glm::mat4(
+		2 * near / (right - left), 0, (right + left) / (right - left), 0,
+		0, 2 * near / (top - bottom), (top + bottom)/(top - bottom), 0,
+		0, 0, -(far + near) / (far - near), -2 * far * near / (far - near),
+		0, 0, -1, 1 
+	);
+
+	projection = glm::transpose(projection);
+	*/
+
+	glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)windowWidth / (float)windowHeight, 0.1f, 5000.0f);
+
+	glm::mat4 view = camera.GetViewMatrix();
+	glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+	glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+	
+	if (c_r_vecs.size() > 0)
+	{
+		Vec3d trans = c_t_vecs[0];
+		Vec3d offset;
+		if (Old100Trans != Vec3d(0, 0, 0))
+		{
+			offset = Old100Trans - trans;
+			offset[0] = -offset[0];
+			offset[1] = -offset[1];
+			
+		}
+		Old100Trans = trans;
+		Accumulate100 += offset * 50;
+		cout << offset << endl;
+	}
+
+	if (c_r_vecs.size() > 1)
+	{
+		Vec3d trans = c_t_vecs[1];
+		cout << trans << endl;
+	}
+
+
+	glm::mat4 model;
+
+	//t_vecs += Accumulate100;
+
+	model = glm::translate(model, glm::vec3(t_vecs[0] * 3.5, -t_vecs[1] * 3.5, -t_vecs[2]));
+	Mat cvRotateMat;
+	Rodrigues(r_vecs, cvRotateMat);
+
+
+	//cvRotateMat = cvRotateMat.inv();
+
+	Mat invertAxis = Mat::eye(Size(3, 3), CV_64F);
+	invertAxis.at<double>(2, 2) = 1;
+	invertAxis.at<double>(1, 1) = -1;
+	invertAxis.at<double>(0, 0) = -1;
+
+	cvRotateMat = invertAxis * cvRotateMat;
+
+
+	/*
+	Mat Rt = Mat::zeros(4, 4, CV_64F);
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+			Rt.at<double>(y, x) = cvRotateMat.at<double>(y, x);
+	}
+
+	Rt.at<double>(0, 3) = -t_vecs[0];
+	Rt.at<double>(1, 3) = -t_vecs[1];
+	Rt.at<double>(2, 3) = t_vecs[2];
+	Rt.at<double>(3, 3) = 1.0;
+
+	Rt = invertAxis * Rt;
+	glm::mat4x4 rMat = glm::mat4x4(
+		Rt.at<double>(0, 0), Rt.at<double>(0, 1), Rt.at<double>(0, 2), Rt.at<double>(0, 3), 
+		Rt.at<double>(1, 0), Rt.at<double>(1, 1), Rt.at<double>(1, 2), Rt.at<double>(1, 3),
+		Rt.at<double>(2, 0), Rt.at<double>(2, 1), Rt.at<double>(2, 2), Rt.at<double>(2, 3),
+		Rt.at<double>(3, 0), Rt.at<double>(3, 1), Rt.at<double>(3, 2), Rt.at<double>(3, 3)
+	);
+
+
+	*/
+
+	/*
+	glm::mat4x4 rMat = glm::mat4x4(
+		cvRotateMat.at<double>(0, 0), cvRotateMat.at<double>(0, 1), cvRotateMat.at<double>(0, 2), 0, 
+		cvRotateMat.at<double>(1, 0), cvRotateMat.at<double>(1, 1), cvRotateMat.at<double>(1, 2), 0,
+		cvRotateMat.at<double>(2, 0), cvRotateMat.at<double>(2, 1), cvRotateMat.at<double>(2, 2), 0,
+		0 , 0, 0, 1
+	);
+
+//	rMat = glm::transpose(rMat);
+	model = model * rMat;
+	*/
+
+
+
+	model = glm::rotate(model, (float)r_vecs[2], glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::rotate(model, glm::radians(30.0f), glm::vec3(1.0, 0.0, 0.0));
+
+	model = glm::scale(model, glm::vec3(1000.0f, 1000.0f, 1000.0f));
+
+
+
+
+
+	glUniformMatrix4fv(glGetUniformLocation(modelShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+
+	statue.Draw(modelShader);
+
+}
+
 void drawScene(InputArray image)
 {
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
 	drawBackground(image);
+	drawModel();
 
 	glfwSwapBuffers(window);
 }
@@ -223,7 +399,8 @@ int main()
 	initGLEnv();
 
 	bgShader = Shader("bg_v.glsl", "bg_f.glsl");
-	Model statue("libertyStatue/LibertStatue.obj");
+	modelShader = Shader("vertex.glsl", "fragment.glsl");
+	statue = Model("LibertyStatue/LibertStatue.obj");
 	
 
 	namedWindow("Marker");
@@ -262,9 +439,6 @@ int main()
 	FileStorage fs;
 	fs.open("camera.xml", FileStorage::READ);
 
-	Mat intrinsic;
-	Mat distCoeffs;
-
 	fs["Intrinsic"] >> intrinsic;
 	fs["DistortionCoefficients"] >> distCoeffs;
 
@@ -281,7 +455,6 @@ int main()
 		if (markerIds.size() > 0)
 		{
 
-			Vec3d r_vecs, t_vecs;
 			int markers = cEstimatePoseBoard(markerCorners, markerIds, board, intrinsic, distCoeffs, r_vecs, t_vecs);
 
 			if (markers > 0)
@@ -293,7 +466,13 @@ int main()
 				switch (markerIds[i])
 				{
 				case 100:
-					controllerCorners.push_back(markerCorners[i]);
+					if (controllerCorners.size() == 0)
+						controllerCorners.push_back(markerCorners[i]);
+					else
+					{
+						controllerCorners.push_back(controllerCorners[0]);
+						controllerCorners[0] = markerCorners[i];
+					}
 					break;
 				case 200:
 					controllerCorners.push_back(markerCorners[i]);
@@ -303,8 +482,6 @@ int main()
 				}
 			}
 
-			vector<Vec3d> c_r_vecs;
-			vector<Vec3d> c_t_vecs;
 
 			estimatePoseSingleMarkers(controllerCorners, 10, intrinsic, distCoeffs, c_r_vecs, c_t_vecs);
 
