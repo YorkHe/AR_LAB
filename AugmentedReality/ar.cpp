@@ -19,7 +19,7 @@ int main()
 	namedWindow("Marker");
 	Mat markerImage;
 
-	Ptr<Dictionary> dictionary = getPredefinedDictionary(DICT_6X6_1000);
+	Ptr<Dictionary> dictionary = getPredefinedDictionary(DICT_7X7_1000);
 	Ptr<DetectorParameters> parameters = DetectorParameters::create();
 	drawMarker(dictionary, 23, 300, markerImage, 1);
 
